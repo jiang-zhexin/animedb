@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/v2.6.0/configuration-schema.json
+package: bangumi
+generate:
+  models: true
+  client: true
+output: ../../internal/bangumi/v0.gen.go
