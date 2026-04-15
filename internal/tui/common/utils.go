@@ -1,4 +1,4 @@
-package tui
+package common
 
 import tea "charm.land/bubbletea/v2"
 
@@ -8,7 +8,7 @@ func CmdHandler(msg tea.Msg) tea.Cmd {
 	}
 }
 
-func pop[T any](a []T) (T, []T) {
+func Pop[T any](a []T) (T, []T) {
 	if l := len(a); l > 0 {
 		return a[l-1], a[:l-1]
 	} else {

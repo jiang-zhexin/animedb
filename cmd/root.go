@@ -12,6 +12,7 @@ import (
 	"github.com/jiang-zhexin/animedb/internal/config"
 	"github.com/jiang-zhexin/animedb/internal/model"
 	"github.com/jiang-zhexin/animedb/internal/tui"
+	"github.com/jiang-zhexin/animedb/internal/tui/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -65,7 +66,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	m.SourceDirPath = conf.SourcePath
 	m.TargetDirPath = conf.TargetPath
 
-	p := tea.NewProgram(tui.NewRootModel(&tui.Ctx{Model: m, WindowSizeMsg: tea.WindowSizeMsg{}}, tui.NewMainMenuModel))
+	p := tea.NewProgram(tui.NewRootModel(common.Ctx{Model: m}, tui.NewMainMenuModel))
 	_, err = p.Run()
 	return err
 }

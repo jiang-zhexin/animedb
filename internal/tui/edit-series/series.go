@@ -1,4 +1,4 @@
-package tui
+package editseries
 
 import (
 	"fmt"
@@ -7,14 +7,15 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jiang-zhexin/animedb/internal/bangumi"
+	"github.com/jiang-zhexin/animedb/internal/tui/common"
 )
 
-type EditSeriesModel struct {
-	ctx        *Ctx
+type SeriesModel struct {
+	ctx        common.Ctx
 	seriesItem list.Model
 }
 
-func NewEditSeriesModel(ctx *Ctx) tea.Model {
+func newSeriesModel(ctx common.Ctx) SeriesModel {
 	items := []list.Item{}
 	for seriesName, subjectID := range ctx.Model.SeriesNameToSubjectID {
 		subject, _ := ctx.Model.GetSubjectById(subjectID)
@@ -23,19 +24,23 @@ func NewEditSeriesModel(ctx *Ctx) tea.Model {
 			subject:    subject,
 		})
 	}
-	em := EditSeriesModel{
+
+	l := list.New(items, list.NewDefaultDelegate(), ctx.Width, ctx.Height)
+	l.Title = "edit series name"
+
+	return SeriesModel{
 		ctx:        ctx,
-		seriesItem: list.New(items, list.NewDefaultDelegate(), ctx.Width, ctx.Height),
+		seriesItem: l,
 	}
-	em.seriesItem.Title = "animedb mange mode > edit series name to subject id"
-	return em
 }
 
-func (m EditSeriesModel) Init() tea.Cmd { return nil }
+func (m SeriesModel) Init() tea.Cmd {
+	return nil
+}
 
-func (m EditSeriesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m SeriesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case updateList:
+	case updateSeriesMsg:
 		items := []list.Item{}
 		for seriesName, subjectID := range m.ctx.Model.SeriesNameToSubjectID {
 			subject, _ := m.ctx.Model.GetSubjectById(subjectID)
@@ -48,19 +53,16 @@ func (m EditSeriesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, keys.Enter):
+		case key.Matches(msg, common.Keys.Enter):
 			si, ok := m.seriesItem.SelectedItem().(seriesItem)
 			if ok {
-				return m, CmdHandler(func(ctx *Ctx) tea.Model {
-					return newSearchModel(ctx, si.seriesName)
-				})
+				return m, common.CmdHandler(updateSearchMsg{seriesName: si.seriesName})
 			}
 		}
 
 	case tea.WindowSizeMsg:
 		m.ctx.WindowSizeMsg = msg
-		h, v := listStyle.GetFrameSize()
-		m.seriesItem.SetSize(msg.Width-h, msg.Height-v)
+		m.seriesItem.SetSize(msg.Width, msg.Height)
 	}
 
 	var cmd tea.Cmd
@@ -68,10 +70,8 @@ func (m EditSeriesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-type updateList struct{}
-
-func (m EditSeriesModel) View() tea.View {
-	return tea.NewView(listStyle.Render(m.seriesItem.View()))
+func (m SeriesModel) View() tea.View {
+	return tea.NewView(m.seriesItem.View())
 }
 
 type seriesItem struct {
@@ -89,4 +89,10 @@ func (si seriesItem) Description() string {
 
 func (si seriesItem) FilterValue() string {
 	return si.seriesName
+}
+
+type updateSeriesMsg struct{}
+
+type updateSearchMsg struct {
+	seriesName string
 }

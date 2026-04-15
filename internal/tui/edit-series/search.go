@@ -1,4 +1,4 @@
-package tui
+package editseries
 
 import (
 	"fmt"
@@ -10,66 +10,62 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/jiang-zhexin/animedb/internal/bangumi"
+	"github.com/jiang-zhexin/animedb/internal/tui/common"
+)
+
+type state uint
+
+const (
+	searchNothing state = iota
+	searchLoading
+	searchResults
+	searchError
 )
 
 type SearchModel struct {
-	ctx         *Ctx
+	ctx         common.Ctx
 	seriesName  string
 	subjectItem list.Model
+	state       state
 	spinner     spinner.Model
-	state       State
 	err         error
 }
 
-type State uint
-
-const (
-	SearchLoadingState State = iota
-	SearchResultsState
-	SearchErrorState
-)
-
-func newSearchModel(ctx *Ctx, seriesName string) tea.Model {
+func newSearchModel(ctx common.Ctx) SearchModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	return SearchModel{
-		ctx:        ctx,
-		seriesName: seriesName,
-		state:      SearchLoadingState,
-		spinner:    s,
+		ctx:     ctx,
+		spinner: s,
 	}
 }
 
 func (m SearchModel) Init() tea.Cmd {
-	return tea.Batch(
-		m.spinner.Tick,
-		func() tea.Msg {
-			results, err := m.ctx.Model.SearchSubject(m.seriesName)
-			slog.Debug("search results", slog.String("len", fmt.Sprint(len(results))))
-			if err != nil {
-				return searchErrorMsg{err: err}
-			}
-			return searchResultsMsg{results: results}
-		},
-	)
-
-}
-
-type searchErrorMsg struct {
-	err error
-}
-
-type searchResultsMsg struct {
-	results []bangumi.Subject
+	return nil
 }
 
 func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case updateSearchMsg:
+		m.seriesName = msg.seriesName
+		m.state = searchLoading
+		return m, tea.Batch(
+			m.spinner.Tick,
+			func() tea.Msg {
+				results, err := m.ctx.Model.SearchSubject(m.seriesName)
+				slog.Debug("search results", slog.String("len", fmt.Sprint(len(results))))
+				if err != nil {
+					return searchErrorMsg{err: err}
+				}
+				return searchResultsMsg{results: results}
+			},
+		)
+
 	case searchErrorMsg:
 		m.err = msg.err
-		m.state = SearchErrorState
+		m.state = searchError
 		return m, nil
 
 	case searchResultsMsg:
@@ -80,32 +76,35 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.subjectItem = list.New(items, list.NewDefaultDelegate(), m.ctx.Width, m.ctx.Height)
-		m.subjectItem.Title = fmt.Sprintf("animedb mange mode > edit series name to subject id > choose subject for %s", m.seriesName)
-		m.state = SearchResultsState
+		m.subjectItem.Title = fmt.Sprintf("choose subject for %s", m.seriesName)
+		m.state = searchResults
 		return m, nil
 
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, keys.Enter):
-			if m.state == SearchResultsState {
+		if m.state == searchResults {
+			switch {
+			case key.Matches(msg, common.Keys.Enter):
 				si, ok := m.subjectItem.SelectedItem().(subjectItem)
 				if ok {
 					slog.Info("update SeriesNameToSubjectID", slog.String("seriesName", m.seriesName), slog.String("id", fmt.Sprint(si.Id)))
 					m.err = m.ctx.Model.UpdateSeriesNameToSubjectID(m.seriesName, si.Id)
 					if m.err != nil {
-						m.state = SearchErrorState
+						m.state = searchError
 						return m, nil
 					}
-					return m, CmdHandler(NewExiter(updateList{}))
+					return m, common.CmdHandler(updateSeriesMsg{})
 				}
+			default:
+				var cmd tea.Cmd
+				m.subjectItem, cmd = m.subjectItem.Update(msg)
+				return m, cmd
 			}
 		}
 
 	case tea.WindowSizeMsg:
 		m.ctx.WindowSizeMsg = msg
-		if m.state == SearchResultsState {
-			h, v := listStyle.GetFrameSize()
-			m.subjectItem.SetSize(msg.Width-h, msg.Height-v)
+		if m.state == searchResults {
+			m.subjectItem.SetSize(msg.Width, msg.Height)
 		}
 
 	case spinner.TickMsg:
@@ -113,26 +112,28 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 	}
-
-	if m.state == SearchResultsState {
-		var cmd tea.Cmd
-		m.subjectItem, cmd = m.subjectItem.Update(msg)
-		return m, cmd
-	}
 	return m, nil
 }
 
 func (m SearchModel) View() tea.View {
 	switch m.state {
-	case SearchResultsState:
-		return tea.NewView(listStyle.Render(m.subjectItem.View()))
-	case SearchErrorState:
+	case searchResults:
+		return tea.NewView(m.subjectItem.View())
+	case searchError:
 		return tea.NewView(m.err.Error())
-	case SearchLoadingState:
+	case searchLoading:
 		return tea.NewView(fmt.Sprintf("\n\n   %s Search bgm...\n\n", m.spinner.View()))
 	default:
-		panic(fmt.Sprintf("Unkown state: %d", m.state))
+		return tea.NewView("")
 	}
+}
+
+type searchErrorMsg struct {
+	err error
+}
+
+type searchResultsMsg struct {
+	results []bangumi.Subject
 }
 
 type subjectItem struct {

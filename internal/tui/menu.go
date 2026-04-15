@@ -9,19 +9,21 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/jiang-zhexin/animedb/internal/tui/common"
+	editseries "github.com/jiang-zhexin/animedb/internal/tui/edit-series"
 )
 
 type MainMenuModel struct {
-	ctx  *Ctx
+	ctx  common.Ctx
 	menu list.Model
 }
 
 const (
-	editSeriesName = menuItem("edit series name to subject id")
+	editSeriesName = menuItem("edit series name")
 	todo           = menuItem("TODO")
 )
 
-func NewMainMenuModel(ctx *Ctx) tea.Model {
+func NewMainMenuModel(ctx common.Ctx) tea.Model {
 	items := []list.Item{editSeriesName, todo}
 
 	l := list.New(items, itemDelegate{styles: newStyles()}, ctx.Width, ctx.Height)
@@ -41,20 +43,19 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, keys.Enter):
+		case key.Matches(msg, common.Keys.Enter):
 			i, ok := m.menu.SelectedItem().(menuItem)
 			if ok {
 				switch i {
 				case editSeriesName:
-					return m, CmdHandler(NewEditSeriesModel)
+					return m, common.CmdHandler(editseries.New)
 				}
 			}
 		}
 
 	case tea.WindowSizeMsg:
 		m.ctx.WindowSizeMsg = msg
-		h, v := listStyle.GetFrameSize()
-		m.menu.SetSize(msg.Width-h, msg.Height-v)
+		m.menu.SetSize(msg.Width, msg.Height)
 	}
 
 	var cmd tea.Cmd
@@ -63,7 +64,7 @@ func (m MainMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m MainMenuModel) View() tea.View {
-	return tea.NewView(listStyle.Render(m.menu.View()))
+	return tea.NewView(m.menu.View())
 }
 
 type menuItem string
@@ -83,8 +84,6 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		return
 	}
 
-	str := fmt.Sprintf("%d. %s", index+1, i)
-
 	fn := d.styles.item.Render
 	if index == m.Index() {
 		fn = func(s ...string) string {
@@ -92,7 +91,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		}
 	}
 
-	fmt.Fprint(w, fn(str))
+	fmt.Fprint(w, fn(string(i)))
 }
 
 type styles struct {
