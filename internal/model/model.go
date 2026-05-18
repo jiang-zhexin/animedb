@@ -13,19 +13,21 @@ import (
 )
 
 type Model struct {
-	SeriesNameToSubjectID SeriesNameToSubjectID    `json:"series_name_to_subject_id"`
-	ProcessedFiles        map[string]ProcessedFile `json:"processed_files"`
-	BangumiCache          BangumiCache             `json:"bangumi_cache"`
-	SourceDirPath         string                   `json:"-"`
-	TargetDirPath         string                   `json:"-"`
-	DryRun                bool                     `json:"-"`
+	SeriesNameToSubjectID   SeriesNameToSubjectID    `json:"series_name_to_subject_id"`
+	SeriesNameEpisodeOffset SeriesNameEpisodeOffset  `json:"series_name_episode_offset"`
+	ProcessedFiles          map[string]ProcessedFile `json:"processed_files"`
+	BangumiCache            BangumiCache             `json:"bangumi_cache"`
+	SourceDirPath           string                   `json:"-"`
+	TargetDirPath           string                   `json:"-"`
+	DryRun                  bool                     `json:"-"`
 }
 
 func LoadFromFile(path string) (*Model, error) {
 	m := Model{
-		SeriesNameToSubjectID: make(SeriesNameToSubjectID),
-		BangumiCache:          make(BangumiCache),
-		ProcessedFiles:        make(map[string]ProcessedFile),
+		SeriesNameToSubjectID:   make(SeriesNameToSubjectID),
+		SeriesNameEpisodeOffset: make(SeriesNameEpisodeOffset),
+		BangumiCache:            make(BangumiCache),
+		ProcessedFiles:          make(map[string]ProcessedFile),
 	}
 
 	if _, err := os.Stat(path); err != nil {
@@ -224,7 +226,7 @@ func (m *Model) UpdateSeriesNameToSubjectID(seriesName string, id bangumi.Subjec
 	}
 
 	for _, pf := range ProcesseFiles {
-		pf.UpdateTargetPath(s)
+		pf.UpdateTargetPath(s, m.SeriesNameEpisodeOffset[seriesName])
 		if err = m.UpdateProcessedFiles(&pf); err != nil {
 			return err
 		}

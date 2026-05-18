@@ -29,11 +29,11 @@ func NewProcessedFiles(sourcePath string) (*ProcessedFile, error) {
 	}, nil
 }
 
-func (pf *ProcessedFile) UpdateTargetPath(s *bangumi.Subject) {
+func (pf *ProcessedFile) UpdateTargetPath(s *bangumi.Subject, offset int) {
 	name := s.NameCn
 	if name == "" {
 		name = s.Name
 	}
 
-	pf.TargetPath = filepath.Join(name, fmt.Sprintf("S01E%02d.mkv", pf.Episode))
+	pf.TargetPath = filepath.Join(name, fmt.Sprintf("S01E%02d.mkv", pf.Episode+offset))
 }

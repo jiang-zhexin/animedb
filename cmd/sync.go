@@ -88,7 +88,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("fail to sreach subject for %s: %w", pf.SeriesName, err)
 		}
 
-		pf.UpdateTargetPath(s)
+		pf.UpdateTargetPath(s, m.SeriesNameEpisodeOffset[pf.SeriesName])
 		if err = m.UpdateProcessedFiles(pf); err != nil {
 			return fmt.Errorf("fail to update processed files for %s: %w", sp, err)
 		}
